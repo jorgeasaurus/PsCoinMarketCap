@@ -11,11 +11,19 @@
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/PsCoinMarketCap.svg?style=flat&logo=powershell&label=PSGallery%20Version)](https://www.powershellgallery.com/packages/PsCoinMarketCap)
 [![PowerShell Gallery](https://img.shields.io/powershellgallery/dt/PsCoinMarketCap.svg?style=flat&logo=powershell&label=PSGallery%20Downloads)](https://www.powershellgallery.com/packages/PsCoinMarketCap)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
+[![Documentation](https://img.shields.io/badge/Documentation-GitHub%20Pages-blue.svg?logo=github)](https://jorgeasaurus.github.io/PsCoinMarketCap/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
 
 ---
+
+## 🌐 Quick Links
+
+- 📖 **[Documentation Website](https://jorgeasaurus.github.io/PsCoinMarketCap/)** - Complete documentation and guides
+- 📦 **[PowerShell Gallery](https://www.powershellgallery.com/packages/PsCoinMarketCap)** - Download and install
+- 📚 **[API Reference](docs/API_REFERENCE.md)** - Complete function reference
+- 💰 **[Free Tier Guide](docs/FREE_TIER_GUIDE.md)** - Optimize free API usage
 
 ## 📋 Table of Contents
 
