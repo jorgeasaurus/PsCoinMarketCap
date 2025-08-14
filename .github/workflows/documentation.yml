@@ -71,9 +71,9 @@ jobs:
         $docsPath = "./docs"
         $helpPath = "$docsPath/Help"
         $functionsPath = "$helpPath/Functions"
-        $platypsPpath = "$docsPath/en-US"
+        $platyPSpath = "$docsPath/en-US"
         
-        @($docsPath, $helpPath, $functionsPath, $platypsPpath) | ForEach-Object {
+        @($docsPath, $helpPath, $functionsPath, $platyPSpath) | ForEach-Object {
           if (-not (Test-Path $_)) {
             New-Item -Path $_ -ItemType Directory -Force | Out-Null
           }
@@ -95,11 +95,24 @@ jobs:
           Write-Host "📝 Generating platyPS help files..." -ForegroundColor Yellow
           Write-Host "  Module: $($module.Name) v$($module.Version)" -ForegroundColor Gray
           Write-Host "  Functions: $($module.ExportedFunctions.Count)" -ForegroundColor Gray
+          Write-Host "  Output folder: $platyPSpath" -ForegroundColor Gray
           
-          New-MarkdownHelp -Module ${{ env.MODULE_NAME }} -OutputFolder $platypsDpath -WithModulePage -Force
+          # Debug: Show the variable value
+          if ([string]::IsNullOrEmpty($platyPSpath)) {
+            Write-Error "platyPSpath variable is empty!"
+            $platyPSpath = "./docs/en-US"
+            Write-Host "  Using fallback path: $platyPSpath" -ForegroundColor Yellow
+          }
+          
+          # Ensure directory exists
+          if (-not (Test-Path $platyPSpath)) {
+            New-Item -Path $platyPSpath -ItemType Directory -Force | Out-Null
+          }
+          
+          New-MarkdownHelp -Module ${{ env.MODULE_NAME }} -OutputFolder $platyPSpath -WithModulePage -Force
           
           # Generate external help file
-          New-ExternalHelp -Path $platypsPpath -OutputPath "./Source/en-US" -Force
+          New-ExternalHelp -Path $platyPSpath -OutputPath "./Source/en-US" -Force
           
           Write-Host "✅ platyPS documentation generated successfully" -ForegroundColor Green
         }
