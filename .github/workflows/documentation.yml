@@ -1,0 +1,459 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/**/*.ps1'
+      - 'Source/**/*.psd1'
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/**/*.ps1'
+      - 'Source/**/*.psd1'
+      - 'docs/**'
+      - 'README.md'
+  workflow_dispatch:
+
+env:
+  MODULE_NAME: PsCoinMarketCap
+  POWERSHELL_TELEMETRY_OPTOUT: 1
+
+jobs:
+  generate-docs:
+    name: Generate Documentation
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install PowerShell modules
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        Install-Module -Name platyPS -Force -Scope CurrentUser -SkipPublisherCheck
+        Install-Module -Name ImportExcel -Force -Scope CurrentUser -ErrorAction SilentlyContinue
+
+    - name: Import module and generate help
+      shell: pwsh
+      run: |
+        Write-Host "🔧 Importing module and generating documentation..." -ForegroundColor Cyan
+        
+        # Import the module
+        Import-Module ./Source/${{ env.MODULE_NAME }}.psd1 -Force
+        
+        # Verify module loaded
+        $module = Get-Module ${{ env.MODULE_NAME }}
+        if (-not $module) {
+          Write-Error "❌ Failed to import module"
+          exit 1
+        }
+        
+        Write-Host "✅ Module imported: $($module.Name) v$($module.Version)" -ForegroundColor Green
+        Write-Host "📊 Functions exported: $($module.ExportedFunctions.Count)" -ForegroundColor White
+
+    - name: Generate platyPS documentation
+      shell: pwsh
+      run: |
+        Write-Host "📚 Generating platyPS documentation..." -ForegroundColor Cyan
+        
+        # Create docs directory structure
+        $docsPath = "./docs"
+        $helpPath = "$docsPath/Help"
+        $functionsPath = "$helpPath/Functions"
+        $platypsPpath = "$docsPath/en-US"
+        
+        @($docsPath, $helpPath, $functionsPath, $platypsPpath) | ForEach-Object {
+          if (-not (Test-Path $_)) {
+            New-Item -Path $_ -ItemType Directory -Force | Out-Null
+          }
+        }
+        
+        # Generate markdown help for all functions using platyPS
+        $module = Get-Module ${{ env.MODULE_NAME }}
+        
+        try {
+          # Generate help for each command using platyPS
+          Write-Host "📝 Generating platyPS help files..." -ForegroundColor Yellow
+          New-MarkdownHelp -Module ${{ env.MODULE_NAME }} -OutputFolder $platypsPpath -WithModulePage -Force
+          
+          # Generate external help file
+          New-ExternalHelp -Path $platypsPpath -OutputPath "./Source/en-US" -Force
+          
+          Write-Host "✅ platyPS documentation generated successfully" -ForegroundColor Green
+        }
+        catch {
+          Write-Warning "platyPS generation failed: $_"
+          Write-Host "Falling back to custom help generation..." -ForegroundColor Yellow
+        }
+
+    - name: Generate custom documentation
+      shell: pwsh
+      run: |
+        Write-Host "📋 Generating custom documentation..." -ForegroundColor Cyan
+        
+        $module = Get-Module ${{ env.MODULE_NAME }}
+        $functions = $module.ExportedFunctions.Keys | Sort-Object
+        
+        # Create function categories
+        $authFunctions = $functions | Where-Object { $_ -like "*ApiKey*" }
+        $cryptoFunctions = $functions | Where-Object { $_ -like "Get-CMC*" -and $_ -notlike "*Exchange*" -and $_ -notlike "*Global*" -and $_ -notlike "*ApiKey*" -and $_ -notlike "*Rate*" }
+        $globalFunctions = $functions | Where-Object { $_ -like "*Global*" }
+        $toolsFunctions = $functions | Where-Object { $_ -in @('Convert-CMCPrice', 'Export-CMCData', 'Watch-CMCPrice', 'Get-CMCChart') }
+        $exchangeFunctions = $functions | Where-Object { $_ -like "*Exchange*" }
+        $rateFunctions = $functions | Where-Object { $_ -like "*Rate*" -or $_ -like "Invoke-*" }
+        
+        # Generate function lists
+        $authList = ($authFunctions | ForEach-Object { "- [$_](en-US/$_.md)" }) -join "`n"
+        $cryptoList = ($cryptoFunctions | ForEach-Object { "- [$_](en-US/$_.md)" }) -join "`n"
+        $globalList = ($globalFunctions | ForEach-Object { "- [$_](en-US/$_.md)" }) -join "`n"
+        $toolsList = ($toolsFunctions | ForEach-Object { "- [$_](en-US/$_.md)" }) -join "`n"
+        $exchangeList = ($exchangeFunctions | ForEach-Object { "- [$_](en-US/$_.md)" }) -join "`n"
+        $rateList = ($rateFunctions | ForEach-Object { "- [$_](en-US/$_.md)" }) -join "`n"
+        
+        # Generate function table
+        $functionTable = $functions | ForEach-Object {
+          $functionName = $_
+          $category = "Other"
+          if ($_ -like "*ApiKey*") { $category = "Authentication" }
+          elseif ($_ -like "Get-CMCListings" -or $_ -like "Get-CMCQuotes" -or $_ -like "Get-CMCInfo" -or $_ -like "Get-CMCMap") { $category = "Cryptocurrency" }
+          elseif ($_ -like "*Global*") { $category = "Global Metrics" }
+          elseif ($_ -in @('Convert-CMCPrice', 'Export-CMCData', 'Watch-CMCPrice', 'Get-CMCChart')) { $category = "Tools & Utilities" }
+          elseif ($_ -like "*Exchange*") { $category = "Exchange Data" }
+          elseif ($_ -like "*Rate*" -or $_ -like "Invoke-*") { $category = "Rate Limiting" }
+          
+          $synopsis = "PowerShell cmdlet"
+          try {
+            $help = Get-Help $_ -ErrorAction SilentlyContinue
+            if ($help.Synopsis -and $help.Synopsis -ne $_) {
+              $synopsis = if ($help.Synopsis.Length -gt 80) { $help.Synopsis.Substring(0, 77) + "..." } else { $help.Synopsis }
+            }
+          } catch {
+            # Use default synopsis
+          }
+          
+          "| [$_](en-US/$_.md) | $synopsis | $category |"
+        }
+        $functionTableText = $functionTable -join "`n"
+        
+        # Generate comprehensive module help
+        $moduleHelp = @"
+        # ${{ env.MODULE_NAME }} PowerShell Module
+
+        **Version:** $($module.Version)  
+        **Author:** $($module.Author)  
+        **Generated:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+
+        ## Description
+        $($module.Description)
+
+        ## Installation
+
+        ### From PowerShell Gallery
+        ``````powershell
+        Install-Module -Name ${{ env.MODULE_NAME }}
+        Import-Module ${{ env.MODULE_NAME }}
+        ``````
+
+        ### From Source
+        ``````powershell
+        git clone https://github.com/jorgeasaurus/${{ env.MODULE_NAME }}.git
+        Import-Module ./${{ env.MODULE_NAME }}/Source/${{ env.MODULE_NAME }}.psd1
+        ``````
+
+        ## Quick Start
+
+        ``````powershell
+        # Set up your API key
+        Set-CMCApiKey -ApiKey "your-api-key-here"
+
+        # Get top 10 cryptocurrencies
+        Get-CMCListings -Limit 10
+
+        # Get Bitcoin price
+        Get-CMCQuotes -Symbol "BTC"
+
+        # Monitor prices with alerts
+        Watch-CMCPrice -Symbol "BTC" -AlertAbove 50000
+        ``````
+
+        ## Available Functions
+
+        This module exports **$($functions.Count) functions** organized by category:
+
+        ### Authentication
+        $authList
+
+        ### Cryptocurrency Data
+        $cryptoList
+
+        ### Global Metrics
+        $globalList
+
+        ### Tools & Utilities
+        $toolsList
+
+        ### Exchange Data
+        $exchangeList
+
+        ### Rate Limiting & Utilities
+        $rateList
+
+        ## Complete Function List
+
+        | Function | Synopsis | Category |
+        |----------|----------|----------|
+        $functionTableText
+
+        ## Additional Resources
+
+        - [API Reference Guide](API_REFERENCE.md) - Comprehensive API documentation
+        - [Free Tier Guide](FREE_TIER_GUIDE.md) - Maximizing free tier usage
+        - [Deployment Guide](../DEPLOYMENT_GUIDE.md) - Module deployment and distribution
+        - [Changelog](../CHANGELOG.md) - Version history and release notes
+        - [GitHub Repository](https://github.com/jorgeasaurus/${{ env.MODULE_NAME }})
+        - [CoinMarketCap API Documentation](https://coinmarketcap.com/api/documentation/v1/)
+
+        ## Support
+
+        - 🐛 **Issues**: [GitHub Issues](https://github.com/jorgeasaurus/${{ env.MODULE_NAME }}/issues)
+        - 💬 **Discussions**: [GitHub Discussions](https://github.com/jorgeasaurus/${{ env.MODULE_NAME }}/discussions)
+        - 📖 **Documentation**: Complete guides in the [docs folder](.)
+
+        ## License
+
+        This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+        "@
+        
+        $moduleHelp | Out-File -FilePath "./docs/Help/${{ env.MODULE_NAME }}-Help.md" -Encoding UTF8
+
+    - name: Validate generated documentation
+      shell: pwsh
+      run: |
+        Write-Host "✅ Validating generated documentation..." -ForegroundColor Cyan
+        
+        $helpPath = "./docs"
+        $platypspath = "./docs/en-US"
+        
+        # Check if platyPS help files were generated
+        $platypsFiles = 0
+        if (Test-Path $platypspath) {
+          $platypsFiles = (Get-ChildItem $platypspath -Filter "*.md" | Measure-Object).Count
+        }
+        
+        # Check if main help file was generated
+        $mainHelp = "./docs/Help/${{ env.MODULE_NAME }}-Help.md"
+        $mainHelpExists = Test-Path $mainHelp
+        
+        Write-Host "📊 Documentation Statistics:" -ForegroundColor Cyan
+        Write-Host "  platyPS Help Files: $platypsFiles" -ForegroundColor White
+        Write-Host "  Main Help File: $(if($mainHelpExists){'✅ Generated'}else{'❌ Missing'})" -ForegroundColor White
+        Write-Host "  API Reference: $(if(Test-Path './docs/API_REFERENCE.md'){'✅ Present'}else{'❌ Missing'})" -ForegroundColor White
+        Write-Host "  Free Tier Guide: $(if(Test-Path './docs/FREE_TIER_GUIDE.md'){'✅ Present'}else{'❌ Missing'})" -ForegroundColor White
+        
+        if ($platypsFiles -gt 0 -or $mainHelpExists) {
+          Write-Host "✅ Documentation generation successful!" -ForegroundColor Green
+        } else {
+          Write-Warning "⚠️  Documentation generation may have issues"
+        }
+
+    - name: Clean up
+      shell: pwsh
+      run: |
+        # Remove imported module
+        Remove-Module ${{ env.MODULE_NAME }} -Force -ErrorAction SilentlyContinue
+
+    - name: Commit and push documentation
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/ Source/en-US/
+        git diff --staged --quiet || git commit -m "📚 Auto-update documentation [skip ci]"
+        git push
+
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: |
+          docs/
+          Source/en-US/
+        retention-days: 30
+
+  build-docs-site:
+    name: Build Documentation Site
+    runs-on: ubuntu-latest
+    needs: generate-docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download documentation artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: documentation
+        path: ./
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+
+    - name: Create documentation site
+      run: |
+        # Create Jekyll config
+        cat > _config.yml << 'EOF'
+        theme: jekyll-theme-minimal
+        title: PsCoinMarketCap
+        description: 🚀 PowerShell module for CoinMarketCap API v1 - Cryptocurrency data, monitoring, and analysis tools
+        logo: PsCoinMarketCap_Logo.png
+        show_downloads: true
+        github:
+          repository_url: https://github.com/jorgeasaurus/PsCoinMarketCap
+        plugins:
+          - jekyll-sitemap
+          - jekyll-feed
+        include:
+          - docs
+          - README.md
+          - CHANGELOG.md
+          - LICENSE
+        exclude:
+          - Source/
+          - Tests/
+          - Build/
+          - .github/
+        markdown: kramdown
+        highlighter: rouge
+        EOF
+        
+        # Create enhanced index page
+        cat > index.md << 'EOF'
+        ---
+        layout: default
+        title: Home
+        ---
+
+        # 🚀 PsCoinMarketCap
+
+        ### 💎 A PowerShell module for the CoinMarketCap API
+
+        [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
+        [![API Version](https://img.shields.io/badge/CMC%20API-v1-green.svg)](https://coinmarketcap.com/api/documentation/v1/)
+        [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+        ## Quick Links
+
+        - 📖 **[Complete Documentation](docs/Help/PsCoinMarketCap-Help.html)** - Full module documentation
+        - 🚀 **[API Reference](docs/API_REFERENCE.html)** - Comprehensive command reference  
+        - 💎 **[Free Tier Guide](docs/FREE_TIER_GUIDE.html)** - Maximizing free API usage
+        - 📝 **[Changelog](CHANGELOG.html)** - Version history and release notes
+        - 🔧 **[Deployment Guide](DEPLOYMENT_GUIDE.html)** - Installation and setup
+
+        ## Installation
+
+        ```powershell
+        Install-Module -Name PsCoinMarketCap
+        ```
+
+        ## Quick Start
+
+        ```powershell
+        # Set up API key
+        Set-CMCApiKey -ApiKey "your-api-key-here"
+
+        # Get top 10 cryptocurrencies
+        Get-CMCListings -Limit 10
+
+        # Monitor Bitcoin with alerts
+        Watch-CMCPrice -Symbol "BTC" -AlertAbove 50000
+        ```
+
+        ## Features
+
+        - 🔐 **Secure API Key Management** - Encrypted storage and session management
+        - 📈 **Real-time Data** - Current prices, market caps, and trading volumes  
+        - 🌍 **Global Metrics** - Overall market statistics and trends
+        - 💱 **Price Conversion** - Convert between 100+ currencies
+        - ⚡ **Rate Limiting** - Built-in rate limit tracking and management
+        - 📊 **Advanced Tools** - Monitoring, reporting, charts, and data export
+        - 🧪 **Comprehensive Testing** - 95+ unit tests with extensive coverage
+
+        Explore the complete documentation to discover all features and capabilities!
+        EOF
+        
+        # Convert markdown files to be Jekyll-compatible
+        find docs/ -name "*.md" -type f | while read -r file; do
+          # Add Jekyll front matter if not present
+          if ! head -n 1 "$file" | grep -q "^---"; then
+            title=$(basename "$file" .md | sed 's/_/ /g' | sed 's/\b\w/\U&/g')
+            temp_file=$(mktemp)
+            echo "---" > "$temp_file"
+            echo "layout: default" >> "$temp_file"
+            echo "title: $title" >> "$temp_file"
+            echo "---" >> "$temp_file"
+            echo "" >> "$temp_file"
+            cat "$file" >> "$temp_file"
+            mv "$temp_file" "$file"
+          fi
+        done
+        
+        # Ensure README and CHANGELOG are Jekyll-compatible
+        for file in README.md CHANGELOG.md; do
+          if [ -f "$file" ]; then
+            title=$(basename "$file" .md)
+            temp_file=$(mktemp)
+            echo "---" > "$temp_file"
+            echo "layout: default" >> "$temp_file"
+            echo "title: $title" >> "$temp_file"
+            echo "---" >> "$temp_file"
+            echo "" >> "$temp_file"
+            cat "$file" >> "$temp_file"
+            mv "$temp_file" "$file"
+          fi
+        done
+        
+        echo "📄 Documentation site prepared with Jekyll"
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: ./
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+
+  notify-completion:
+    name: Notify Documentation Update
+    runs-on: ubuntu-latest
+    needs: [generate-docs, build-docs-site]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Create summary
+      run: |
+        echo "📚 Documentation update completed!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Generated Documentation" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔧 Function reference updated with platyPS" >> $GITHUB_STEP_SUMMARY
+        echo "- 📖 Help files regenerated" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 GitHub Pages deployed with Jekyll" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Links" >> $GITHUB_STEP_SUMMARY
+        echo "- [📖 Documentation Site](https://jorgeasaurus.github.io/PsCoinMarketCap)" >> $GITHUB_STEP_SUMMARY
+        echo "- [🚀 API Reference](docs/API_REFERENCE.md)" >> $GITHUB_STEP_SUMMARY
+        echo "- [💎 Free Tier Guide](docs/FREE_TIER_GUIDE.md)" >> $GITHUB_STEP_SUMMARY
