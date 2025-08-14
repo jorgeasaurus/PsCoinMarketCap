@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0  
 **Author:** Jorgeasaurus  
-**Generated:** 2025-08-14 17:06:28 UTC
+**Generated:** 2025-08-14 17:15:52 UTC
 
 ## Description
 PowerShell module for interacting with the CoinMarketCap API v1. Provides cmdlets for retrieving cryptocurrency data, market metrics, exchange information, and more.
