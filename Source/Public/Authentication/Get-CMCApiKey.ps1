@@ -85,7 +85,7 @@ function Get-CMCApiKey {
             }
             
             'User' {
-                $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                $keyPath = Get-CMCConfigPath
                 $keyFile = Join-Path -Path $keyPath -ChildPath 'apikey.xml'
                 
                 if (Test-Path -Path $keyFile) {

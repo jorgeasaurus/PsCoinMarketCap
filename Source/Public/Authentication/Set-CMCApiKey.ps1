@@ -105,7 +105,7 @@ function Set-CMCApiKey {
             
             'User' {
                 # Store persistently in user profile
-                $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                $keyPath = Get-CMCConfigPath
                 
                 if (-not (Test-Path -Path $keyPath)) {
                     New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
