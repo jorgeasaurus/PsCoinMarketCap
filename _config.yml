@@ -1,47 +1,15 @@
-# Jekyll configuration for GitHub Pages
+theme: jekyll-theme-minimal
 title: PsCoinMarketCap
 description: PowerShell module for CoinMarketCap API v1 - Cryptocurrency data, monitoring, and analysis tools
-baseurl: "/PsCoinMarketCap"
-url: "https://jorgeasaurus.github.io"
-
-# Theme
-theme: jekyll-theme-minimal
-
-# Logo
 logo: PsCoinMarketCap_Logo.png
 show_downloads: true
-
-# Plugins
-plugins:
-  - jekyll-relative-links
-  - jekyll-seo-tag
-
-# Include these files/folders
 include:
+  - docs
   - README.md
   - CHANGELOG.md
   - LICENSE
-  - docs
-  - index.md
-
-# Exclude from processing
 exclude:
   - Source/
   - Tests/
   - Build/
   - Output/
-  - "*.ps1"
-  - "*.psm1"
-  - "*.psd1"
-  - .github/
-
-# Enable relative links
-relative_links:
-  enabled: true
-  collections: true
-
-# Markdown settings
-markdown: kramdown
-kramdown:
-  input: GFM
-  syntax_highlighter: rouge
