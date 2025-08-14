@@ -302,12 +302,42 @@ jobs:
         # Remove imported module
         Remove-Module ${{ env.MODULE_NAME }} -Force -ErrorAction SilentlyContinue
 
+    - name: Create index.md from README
+      run: |
+        # Copy README.md as index.md for GitHub Pages
+        cp README.md index.md
+        echo "Created index.md from README.md"
+    
     - name: Commit and push documentation
       if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add docs/ Source/en-US/
+        
+        # Add all documentation files including index.md
+        git add docs/ Source/en-US/ index.md
+        
+        # Also create and add _config.yml for Jekyll
+        cat > _config.yml << 'EOF'
+        theme: jekyll-theme-minimal
+        title: PsCoinMarketCap
+        description: PowerShell module for CoinMarketCap API v1 - Cryptocurrency data, monitoring, and analysis tools
+        logo: PsCoinMarketCap_Logo.png
+        show_downloads: true
+        include:
+          - docs
+          - README.md
+          - CHANGELOG.md
+          - LICENSE
+        exclude:
+          - Source/
+          - Tests/
+          - Build/
+          - Output/
+        EOF
+        
+        git add _config.yml
+        
         git diff --staged --quiet || git commit -m "📚 Auto-update documentation [skip ci]"
         git push
 
@@ -342,33 +372,31 @@ jobs:
     - name: Setup Pages
       uses: actions/configure-pages@v4
     
-    - name: Prepare Documentation Site
+    - name: Verify Documentation Files
       run: |
-        # Create Jekyll config
-        cat > _config.yml << 'EOF'
-        theme: jekyll-theme-minimal
-        title: PsCoinMarketCap
-        description: PowerShell module for CoinMarketCap API v1 - Cryptocurrency data, monitoring, and analysis tools
-        logo: PsCoinMarketCap_Logo.png
-        show_downloads: true
-        include:
-          - docs
-          - README.md
-          - CHANGELOG.md
-          - LICENSE
-        exclude:
-          - Source/
-          - Tests/
-          - Build/
-          - Output/
-        EOF
+        # Verify required files exist
+        echo "Checking documentation files..."
         
-        # Copy README as index
-        cp README.md index.md
+        if [ -f "index.md" ]; then
+          echo "✅ index.md exists"
+        else
+          echo "⚠️ index.md not found, creating from README"
+          cp README.md index.md
+        fi
         
-        # Verify documentation exists
-        echo "Documentation files:"
-        ls -la docs/ 2>/dev/null || echo "Docs not found yet"
+        if [ -f "_config.yml" ]; then
+          echo "✅ _config.yml exists"
+        else
+          echo "⚠️ _config.yml not found"
+        fi
+        
+        echo ""
+        echo "Documentation structure:"
+        ls -la docs/ 2>/dev/null || echo "Docs folder not found"
+        
+        echo ""
+        echo "Root files for GitHub Pages:"
+        ls -la index.md _config.yml *.png 2>/dev/null || true
     
     - name: Upload Pages Artifact
       uses: actions/upload-pages-artifact@v3
