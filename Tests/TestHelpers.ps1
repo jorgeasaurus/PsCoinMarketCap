@@ -31,5 +31,4 @@ function Get-TestConfigPath {
     }
 }
 
-# Export the function
-Export-ModuleMember -Function Get-TestConfigPath
+# Function is now available in the current scope when dot-sourced
