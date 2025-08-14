@@ -439,55 +439,6 @@ jobs:
         # Go back to repository root
         cd ..
         
-        # Create a simple index.html as fallback
-        if [ ! -f "_site/index.html" ]; then
-          cat > _site/index.html << 'EOF'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PsCoinMarketCap Documentation</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        h1 { color: #0366d6; }
-        pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; }
-        code { background: #f6f8fa; padding: 2px 4px; border-radius: 3px; }
-        .buttons { margin: 20px 0; }
-        .buttons a { display: inline-block; padding: 10px 20px; margin-right: 10px; background: #0366d6; color: white; text-decoration: none; border-radius: 6px; }
-        .buttons a:hover { background: #0256c7; }
-    </style>
-</head>
-<body>
-    <h1>🚀 PsCoinMarketCap</h1>
-    <h2>PowerShell Module for CoinMarketCap API</h2>
-    
-    <div class="buttons">
-        <a href="https://github.com/jorgeasaurus/PsCoinMarketCap">GitHub Repository</a>
-        <a href="README.html">README</a>
-        <a href="CHANGELOG.html">Changelog</a>
-        <a href="docs/Help/PsCoinMarketCap-Help.html">Documentation</a>
-    </div>
-    
-    <h3>Installation</h3>
-    <pre><code>Install-Module -Name PsCoinMarketCap</code></pre>
-    
-    <h3>Quick Start</h3>
-    <pre><code># Set API Key
-Set-CMCApiKey -ApiKey "your-api-key"
-
-# Get top cryptocurrencies  
-Get-CMCListings -Limit 10
-
-# Get Bitcoin price
-Get-CMCQuotes -Symbol "BTC"</code></pre>
-    
-    <p>For full documentation, see the <a href="docs/Help/PsCoinMarketCap-Help.html">module help</a>.</p>
-</body>
-</html>
-EOF
-        fi
-        
         # Debug: Show _site contents
         echo "📄 Documentation site prepared with Jekyll in _site directory"
         echo "_site directory contents:"
