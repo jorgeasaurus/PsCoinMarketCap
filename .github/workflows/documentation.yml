@@ -308,17 +308,11 @@ jobs:
         cp README.md index.md
         echo "Created index.md from README.md"
     
-    - name: Commit and push documentation
-      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    - name: Create Jekyll config
+      shell: pwsh
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # Add all documentation files including index.md
-        git add docs/ Source/en-US/ index.md
-        
-        # Also create and add _config.yml for Jekyll
-        cat > _config.yml << 'EOF'
+        # Create _config.yml for Jekyll
+        @"
         theme: jekyll-theme-minimal
         title: PsCoinMarketCap
         description: PowerShell module for CoinMarketCap API v1 - Cryptocurrency data, monitoring, and analysis tools
@@ -334,12 +328,29 @@ jobs:
           - Tests/
           - Build/
           - Output/
-        EOF
+        "@ | Out-File -FilePath "_config.yml" -Encoding UTF8
         
-        git add _config.yml
+        Write-Host "Created _config.yml for Jekyll"
+    
+    - name: Commit and push documentation
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+      shell: pwsh
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
         
-        git diff --staged --quiet || git commit -m "📚 Auto-update documentation [skip ci]"
-        git push
+        # Add all documentation files including index.md and _config.yml
+        git add docs/ Source/en-US/ index.md _config.yml
+        
+        # Check if there are changes to commit
+        $changes = git diff --staged --name-only
+        if ($changes) {
+          git commit -m "📚 Auto-update documentation [skip ci]"
+          git push
+          Write-Host "✅ Documentation pushed to repository"
+        } else {
+          Write-Host "No documentation changes to commit"
+        }
 
     - name: Upload documentation artifacts
       uses: actions/upload-artifact@v4
