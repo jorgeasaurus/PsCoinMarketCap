@@ -1,4 +1,7 @@
 BeforeAll {
+    # Import test helpers
+    . (Join-Path $PSScriptRoot '..' 'TestHelpers.ps1')
+    
     # Import the module
     $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\..\Source\PsCoinMarketCap.psd1'
     Import-Module $modulePath -Force
@@ -36,7 +39,7 @@ AfterAll {
     $script:CMCUseSandbox = $script:OriginalUseSandbox
     
     # Clean up test files
-    $testKeyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+    $testKeyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
     if (Test-Path $testKeyPath) {
         Remove-Item -Path $testKeyPath -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -73,7 +76,7 @@ Describe 'Set-CMCApiKey' {
         $script:CMCUseSandbox = $false
         
         # Clean up any existing test files
-        $testKeyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+        $testKeyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
         if (Test-Path $testKeyPath) {
             Remove-Item -Path $testKeyPath -Recurse -Force -ErrorAction SilentlyContinue
         }
@@ -144,7 +147,7 @@ Describe 'Set-CMCApiKey' {
     Context 'User Scope Storage' {
         
         It 'Should create storage directory if it does not exist' {
-            $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+            $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
             $keyPath | Should -Not -Exist
             
             Set-CMCApiKey -ApiKey 'user-test-key' -Scope User
@@ -155,14 +158,14 @@ Describe 'Set-CMCApiKey' {
         It 'Should save API key to file in user profile' {
             Set-CMCApiKey -ApiKey 'persistent-test-key' -Scope User
             
-            $keyFile = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap\apikey.xml'
+            $keyFile = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap\apikey.xml'
             $keyFile | Should -Exist
         }
         
         It 'Should save sandbox preference to file when enabled' {
             Set-CMCApiKey -ApiKey 'sandbox-user-key' -Scope User -UseSandbox
             
-            $sandboxFile = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap\sandbox.txt'
+            $sandboxFile = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap\sandbox.txt'
             $sandboxFile | Should -Exist
             Get-Content $sandboxFile | Should -Be 'true'
         }
@@ -170,7 +173,7 @@ Describe 'Set-CMCApiKey' {
         It 'Should remove sandbox file when disabled' {
             # First set with sandbox
             Set-CMCApiKey -ApiKey 'sandbox-key' -Scope User -UseSandbox
-            $sandboxFile = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap\sandbox.txt'
+            $sandboxFile = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap\sandbox.txt'
             $sandboxFile | Should -Exist
             
             # Then set without sandbox
@@ -204,7 +207,7 @@ Describe 'Set-CMCApiKey' {
         It 'Should encrypt API key when saving to file' {
             Set-CMCApiKey -ApiKey 'encrypted-test-key' -Scope User
             
-            $keyFile = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap\apikey.xml'
+            $keyFile = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap\apikey.xml'
             $content = Get-Content $keyFile -Raw
             
             # The file should contain XML with encrypted data

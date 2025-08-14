@@ -1,4 +1,7 @@
 BeforeAll {
+    # Import test helpers
+    . (Join-Path $PSScriptRoot '..' 'TestHelpers.ps1')
+    
     # Import the module
     $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\..\Source\PsCoinMarketCap.psd1'
     
@@ -46,7 +49,8 @@ BeforeAll {
 
 AfterAll {
     # Clean up test files
-    $testKeyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+    $configPath = if ($env:APPDATA) { $env:APPDATA } elseif ($env:HOME) { "$env:HOME/.config" } else { [System.IO.Path]::GetTempPath() }
+    $testKeyPath = Join-Path -Path $configPath -ChildPath 'PsCoinMarketCap'
     if (Test-Path $testKeyPath) {
         Remove-Item -Path $testKeyPath -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -66,7 +70,8 @@ Describe 'Get-CMCApiKey' {
         }
         
         # Clean up any existing test files
-        $testKeyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+        $configPath = if ($env:APPDATA) { $env:APPDATA } elseif ($env:HOME) { "$env:HOME/.config" } else { [System.IO.Path]::GetTempPath() }
+        $testKeyPath = Join-Path -Path $configPath -ChildPath 'PsCoinMarketCap'
         if (Test-Path $testKeyPath) {
             Remove-Item -Path $testKeyPath -Recurse -Force -ErrorAction SilentlyContinue
         }
@@ -148,7 +153,7 @@ Describe 'Get-CMCApiKey' {
         It 'Should retrieve API key from user profile' {
             # Mock Set-CMCApiKey for user scope
             Mock Set-CMCApiKey -ModuleName PsCoinMarketCap {
-                $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
                 if (-not (Test-Path -Path $keyPath)) {
                     New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
                 }
@@ -176,7 +181,7 @@ Describe 'Get-CMCApiKey' {
         It 'Should load sandbox preference from user profile' {
             # Mock Set-CMCApiKey for user scope with sandbox
             Mock Set-CMCApiKey -ModuleName PsCoinMarketCap {
-                $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
                 if (-not (Test-Path -Path $keyPath)) {
                     New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
                 }
@@ -218,7 +223,7 @@ Describe 'Get-CMCApiKey' {
         It 'Should update session variables when retrieving from user profile' {
             # Mock Set-CMCApiKey
             Mock Set-CMCApiKey -ModuleName PsCoinMarketCap {
-                $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
                 if (-not (Test-Path -Path $keyPath)) {
                     New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
                 }
@@ -254,7 +259,7 @@ Describe 'Get-CMCApiKey' {
             # Mock Set-CMCApiKey
             Mock Set-CMCApiKey -ModuleName PsCoinMarketCap {
                 if ($Scope -eq 'User') {
-                    $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                    $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
                     if (-not (Test-Path -Path $keyPath)) {
                         New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
                     }
@@ -285,7 +290,7 @@ Describe 'Get-CMCApiKey' {
         It 'Should fall back to user profile when session is empty' {
             # Mock Set-CMCApiKey
             Mock Set-CMCApiKey -ModuleName PsCoinMarketCap {
-                $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+                $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
                 if (-not (Test-Path -Path $keyPath)) {
                     New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
                 }
@@ -370,7 +375,7 @@ Describe 'Get-CMCApiKey' {
         
         It 'Should handle corrupted user profile file gracefully' {
             # Create a corrupted file
-            $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+            $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
             New-Item -Path $keyPath -ItemType Directory -Force | Out-Null
             
             $keyFile = Join-Path -Path $keyPath -ChildPath 'apikey.xml'
@@ -380,7 +385,7 @@ Describe 'Get-CMCApiKey' {
         }
         
         It 'Should handle missing user profile directory' {
-            $keyPath = Join-Path -Path $env:APPDATA -ChildPath 'PsCoinMarketCap'
+            $keyPath = Join-Path -Path (Get-TestConfigPath) -ChildPath 'PsCoinMarketCap'
             if (Test-Path $keyPath) {
                 Remove-Item -Path $keyPath -Recurse -Force
             }
