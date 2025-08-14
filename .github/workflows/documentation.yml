@@ -303,7 +303,7 @@ jobs:
         Remove-Module ${{ env.MODULE_NAME }} -Force -ErrorAction SilentlyContinue
 
     - name: Commit and push documentation
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -323,6 +323,7 @@ jobs:
   build-docs-site:
     name: Build Documentation Site
     runs-on: ubuntu-latest
+    needs: generate-docs
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     
     permissions:

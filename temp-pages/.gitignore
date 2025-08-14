@@ -1,0 +1,23 @@
+# Build output
+Output/
+
+# PowerShell module artifacts
+*.nupkg
+*.zip
+
+# Local settings
+.claude/settings.local.json
+CLAUDE.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+*.suo
+*.user
+DEPLOYMENT_GUIDE.md
+code.code-workspace
+PSGALLERY_CHECKLIST.md
+job-logs.txt
