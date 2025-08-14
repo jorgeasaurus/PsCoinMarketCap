@@ -297,6 +297,10 @@ jobs:
     needs: generate-docs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     permissions:
       contents: read
       pages: write
@@ -432,13 +436,13 @@ jobs:
         echo "📄 Documentation site prepared with Jekyll"
 
     - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v2
+      uses: actions/upload-pages-artifact@v3
       with:
         path: ./
 
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v2
+      uses: actions/deploy-pages@v4
 
   notify-completion:
     name: Notify Documentation Update
