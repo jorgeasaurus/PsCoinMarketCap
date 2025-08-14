@@ -211,11 +211,11 @@ Describe 'Get-CMCListings' {
         
         It 'Should handle tag filter' {
             Mock Invoke-CMCRequest -ModuleName PsCoinMarketCap {
-                $Parameters.tag | Should -Be 'defi,smart-contracts'
+                $Parameters.tag | Should -Be 'defi,filesharing'
                 return $script:MockListingsResponse
             } -ParameterFilter { $Parameters }
             
-            $result = Get-CMCListings -Tag @('defi', 'smart-contracts')
+            $result = Get-CMCListings -Tag @('defi', 'filesharing')
             
             Should -Invoke Invoke-CMCRequest -ModuleName PsCoinMarketCap -Times 1
         }
